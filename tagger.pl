@@ -5,8 +5,15 @@ use strict;
 use warnings;
 use feature 'say';
 
-my $trainFile = "PA3/pos-train.txt";
-my $testFile = "pA3/pos-test.txt";
+# Read in file names
+my $argCount = scalar @ARGV;
+
+if( $argCount < 2 ) {
+    die "Please enter two files as input arguments";
+}
+my $trainFile = $ARGV[0];
+my $testFile = $ARGV[1];
+
 # Multi-layer hash which contains at the top level the different tokens found in the train file.
 # The next level contains hashes the different possible tags for the word in question, paired with its frequency
 my %tokens = ();
