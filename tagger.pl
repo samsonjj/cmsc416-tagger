@@ -1,3 +1,6 @@
+# tagger.pl
+#
+# Title: Programming Assignment 3
 # Author: Jonathan Samson
 # Date: March 12, 2019
 # Class: CMSC 416-001 Spring 2019, Virginia Commonwealth University 
@@ -12,7 +15,10 @@
 # a/DETERMINER dog/NOUN". The possible tags are chosen from a tag set. The golden standard for POS
 # tagging is that which is performed by a human, and reaches 100% accuracy. The baseline standard
 # is that which chooses the most likely tag based only on the given word, using some corpus to find
-# these probabilities. The baseline standard is implemented in this program.
+# these probabilities. The baseline standard is implemented in this program. This program determines
+# the most common tag for each token provided in the specified training file. It then tags the tokens
+# in the specified test file with its most likely tag, or "NN" by default. It prints token/tag pairs
+# to STDOUT, with the same line structure and phrase boundries ([]'s) as provided in the test file.
 #
 # EXAMPLE USAGE
 # We might have a large training file pos-train.txt which consists of many tagged sentences following the below style:
@@ -37,15 +43,19 @@
 #   (OUT) [ it/PRP ]
 #   (OUT) [ was/VBD n't/RB Black/NNP Monday/NNP ]
 #   (OUT) ./.
-
+#
 # ALGORITHM
 # The program follows the following steps, which are marked with comments throughout the program.
 # (1) Open the two files provided as command line arguemnts 1 (train file) and 2 (train test).
 # (2) Iterate through each line in the training file and create tagging model.
 #   a. Tokenize the lines into token/tag pairs.
-#   b. Adjust the count of each token/tag pair in the %tokens hash.
-# (3)
-# When creating our model (probability distribution) if a word has multiple possible tags, we add 1 to the frequency for both
+#   b. Adjust the frequency of each token/tag pair in the %tokens hash.
+# (3) Record the most likely tag for each token.
+# (4) Tag each token, and print formatted output.
+# 
+# OF NOTE:
+# When creating the model (probability distribution) if a word has multiple possible tags, we add 1 to the frequency for both.
+# Each output token is tagged with exactly one tag.
 
 use strict;
 use warnings;
@@ -91,17 +101,17 @@ while( my $line = <$fhTrain> ) {
     chomp $line;
     $line =~ s/^\s+|\s+$//g;
 
-    # Create array of token/tag pairs, splittings by whitespace.
+    # Create array of token/tag pairs, splitting by whitespace.
     my @array = split(/\s+/, $line);
 
     # Process each token/tag pair into the hash.
     for my $pair ( @array ) {
 
-        # Split up the word and tag, by the forward slash.
+        # Split up the token and tag, by the forward slash.
         my @parts = split(/\//, $pair);
 
         # Forward slashes within the text can cause the pair to be split too many times.
-        # Combine parts until we have only two (word and tag).
+        # Combine parts until we have only two (token and tag).
         my $partsLength = scalar @parts;
         while( $partsLength > 2 ) {
             $parts[1] = $parts[0].$parts[1];
@@ -109,7 +119,7 @@ while( my $line = <$fhTrain> ) {
             $partsLength = scalar @parts;
         }
         
-        # It is possible a word might have multiple tags, Example: "more/JJR|RBR".
+        # It is possible a token might have multiple tags, Example: "more/JJR|RBR".
         # Adjust the frequency for each tag.
         my $word = $parts[0];
         my @tags = split( /\|/, $parts[1] );
@@ -129,70 +139,60 @@ while( my $line = <$fhTrain> ) {
 
 #################### (3) ####################
 
-# Change frequency counts within the hash to probabilities
-# Example: (2, 3, 5) turns into (.2, .3, .5)
+# Iterate through tokens stored in %tokens, and record the maximimum frequency tag for each token.
 for my $word ( keys %tokens ) {
 
-    # Store the max frequency of the tags associated with this word
+    # Store the max frequency of the tags associated with this token.
     my $maxFrequency = 0;
-    # Store max tag
+    # Store max tag.
     my $maxTag = "";
 
-    # Iterate through each tag's count, and change max if new max found
+    # Iterate through each tag's count, and change max if new max found.
     for my $tag ( keys %{ $tokens{$word} } ) {
-        # Test if max
         if( $tokens{$word}{$tag} > $maxFrequency ) {
-            # If max, record tag and frequency
             $maxTag = $tag;
             $maxFrequency = $tokens{$word}{$tag};
         }
     }
 
-    # Store a new key/value pair [key = "max", value = maxTag], to be used later
+    # Store a new key/value pair [key = "max", value = maxTag], to be used later.
     $tokens{$word}{"max"} = $maxTag;
 }
 
-# for my $word ( keys %tokens ) {
-#     say "$word";
+#################### (4) ####################
 
-#     # Iterate through each tag's count and add to totalFrequency
-#     for my $tag ( keys %{ $tokens{$word} } ) {
-#         say "  $tag -> $tokens{$word}{$tag}";
-#     }
-# }
-
-#
-# TAG THE TEST FILE
-#
-
+# Iterate through lines of the test file, and print tagged output.
 while( my $line = <$fhTest> ) {
     
-    # Keep track of if there were square brackets
+    # Record the presence of square brackets, to be reprinted later.
     my $brackets = 0;
 
     # Get rid of square brackets.
     if( $line =~ s/[\[\]]//g ) {
         $brackets = 1;
     }
-    # Get rid of newline character.
+
+    # Get rid of newline character and trailing whitespace.
     chomp $line;
-    # Get rid of trailing whitespace
     $line =~ s/^\s+|\s+$//g;
-    # Seperate each token
+
+    # Create array of token/tag pairs, splitting by whitespace.
     my @array = split(/\s+/, $line);
 
-
-    # Keep track if we are on the first word of the array (for spacing purposes)
+    # Keep track of whether we are on the first word of the array (for spacing purposes).
     my $first = 1;
     if( $brackets == 1 ) {
         print "[ ";
     }
+    # Tag each token, and print the token/tag pair.
     for my $token (@array) {
         print " " if $first == 0;
         print "$token/";
+        # If we have the token recorded, tag it with the maximum frequency tag.
         if( exists $tokens{$token} ) {
             print $tokens{$token}{"max"};
         }
+        # Otherwise, tag it with NN.
         else {
             print "NN";
         }
