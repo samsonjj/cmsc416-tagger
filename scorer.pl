@@ -55,6 +55,14 @@ while( my $line = <$fhTagged> ) {
     for my $pair ( @array ) {
         # Split up the word and tag
         my @parts = split(/\//, $pair);
+        # Forward slashes within the text can cause the pair to be split too many times.
+        # Combine parts until we have only two (word and tag)
+        my $partsLength = scalar @parts;
+        while( $partsLength > 2 ) {
+            $parts[1] = $parts[0].$parts[1];
+            shift @parts;
+            $partsLength = scalar @parts;
+        }
         
         push( @taggedTags, $parts[1] );
     }
@@ -73,6 +81,14 @@ while( my $line = <$fhKey> ) {
     for my $pair ( @array ) {
         # Split up the word and tag
         my @parts = split(/\//, $pair);
+        # Forward slashes within the text can cause the pair to be split too many times.
+        # Combine parts until we have only two (word and tag)
+        my $partsLength = scalar @parts;
+        while( $partsLength > 2 ) {
+            $parts[1] = $parts[0].$parts[1];
+            shift @parts;
+            $partsLength = scalar @parts;
+        }
         
         push( @keyTags, $parts[1] );
     }
@@ -90,17 +106,23 @@ my $correct = 0;
 for( my $i=0; $i<$lengthTagged; $i++ ) {
 
     # Check if tag is correct. Increase $correct count if so.
-    if( $taggedTags[$i] eq $keyTags[$i] ) {
+    # if( $taggedTags[$i] eq $keyTags[$i] ) {
+    #     $correct++;
+    # }
+    # print $taggedTags[$i]." ".$keyTags[$i]."\n";
+    my @correctTags = split( /\|/, $keyTags[$i]);
+    my %correctTags = map { $_ => 1 } @correctTags;
+    if( exists $correctTags{$taggedTags[$i]} ) {
         $correct++;
     }
 
     # If the tag/key count exists, increment it. Otherwise, set the count to 1.
     # Represents how many times we have seen the tag from taggedFile when predicting the tag from keyFile
-    if( exists $confusionMatrix{$taggedTags[$i]} && exists $confusionMatrix{$taggedTags[$i]}{$keyTags[$i]}) {
-        $confusionMatrix{$taggedTags[$i]}{$keyTags[$i]}++;
+    if( exists $confusionMatrix{$keyTags[$i]} && exists $confusionMatrix{$keyTags[$i]}{$taggedTags[$i]}) {
+        $confusionMatrix{$keyTags[$i]}{$taggedTags[$i]}++;
     }
     else {
-        $confusionMatrix{$taggedTags[$i]}{$keyTags[$i]} = 1;
+        $confusionMatrix{$keyTags[$i]}{$taggedTags [$i]} = 1;
     }
 
     # If we have not seen either of these tags yet, add it to the tag list.
@@ -112,11 +134,27 @@ for( my $i=0; $i<$lengthTagged; $i++ ) {
     }
 }
 
-for my $tag (keys %tagList) {
-    say $tag;
-}
+
 
 print "correct: $correct\n";
 
 my $accuracy = $correct / $lengthTagged;
-print "accuracy: $accuracy";
+print "accuracy: $accuracy\n";
+
+
+for my $actualTag (reverse sort keys %tagList) {
+    print "ACTUAL   | $actualTag:\nPREDICTED|";
+    my $count = 1;
+    for my $predictedTag (reverse sort keys %tagList) {
+        my $frequency = 0;
+        $frequency = $confusionMatrix{$actualTag}{$predictedTag} if( exists $confusionMatrix{$actualTag}{$predictedTag} );
+        my $tagAndCount = "$predictedTag-$frequency";
+        my $result = sprintf("%12s ", $tagAndCount);
+        print $result;
+        if( $count % 7 == 0) {
+            print "\nPREDICTED|";
+        }
+        $count++;
+    }
+    print "\n";
+}
