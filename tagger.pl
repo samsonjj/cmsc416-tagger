@@ -56,6 +56,21 @@
 # OF NOTE:
 # When creating the model (probability distribution) if a word has multiple possible tags, we add 1 to the frequency for both.
 # Each output token is tagged with exactly one tag.
+#
+# RESULTS
+# The algorithm was implemented and tested in 7 different forms
+# 1) Baseline.
+# 2) Rule 1: If previous token is not punctuation, and current token is capitalized, tag with NNP.
+# 3) Rule 2:
+# 4) Rule 3:
+# 5) Rule 4:
+# 6) Rule 5:
+# 7) Rules 1-5 together
+#
+# Resulting accuracy
+# 1) Baseline:  0.844748697733352
+# 2) Rule 1:    0.850133746304378
+
 
 use strict;
 use warnings;
@@ -101,7 +116,6 @@ while( my $line = <$fhTrain> ) {
     chomp $line;
     $line =~ s/^\s+|\s+$//g;
 
-    # Create array of token/tag pairs, splitting by whitespace.
     my @array = split(/\s+/, $line);
 
     # Process each token/tag pair into the hash.
@@ -159,6 +173,7 @@ for my $word ( keys %tokens ) {
     $tokens{$word}{"max"} = $maxTag;
 }
 
+
 #################### (4) ####################
 
 # Iterate through lines of the test file, and print tagged output.
@@ -184,18 +199,49 @@ while( my $line = <$fhTest> ) {
     if( $brackets == 1 ) {
         print "[ ";
     }
+
+    my $previousToken = "";
     # Tag each token, and print the token/tag pair.
-    for my $token (@array) {
+    my $arrayLength = scalar @array;
+    for (my $i=0; $i<$arrayLength; $i++) {
+        
+        my $token = $array[$i];
+        my $nextToken = "";
+        my $previousTag
+        if( $i > 0) {
+            $previousToken = $array[$i-1];
+        }
+        if( $i < $arrayLength-1 ) {
+            $nextToken = $array[$i+1];
+        }
         print " " if $first == 0;
         print "$token/";
+
+        ###########################################################
+        ######################### TAGGING #########################
+        ###########################################################
+
+        # RULE 1
+        if( $previousToken !~ /[.?!]/ && $token =~ /^[A-Z].*$/ ) {
+            print "NNP";
+        }
+        # Rule 2
+        # If preceded by determiner and followed by noun, mark as adjective
         # If we have the token recorded, tag it with the maximum frequency tag.
-        if( exists $tokens{$token} ) {
+        elsif( exists $tokens{$token} ) {
             print $tokens{$token}{"max"};
         }
         # Otherwise, tag it with NN.
         else {
             print "NN";
         }
+
+        $previousToken = $token;
+
+        ###########################################################
+        ################### COMPLETED TAGGING #####################
+        ###########################################################
+
         $first = 0;
     }
     if( $brackets == 1 ) {
