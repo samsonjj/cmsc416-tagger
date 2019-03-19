@@ -61,15 +61,20 @@
 # The algorithm was implemented and tested in 7 different forms
 # 1) Baseline.
 # 2) Rule 1: If previous token is not punctuation, and current token is capitalized, tag with NNP.
-# 3) Rule 2:
-# 4) Rule 3:
-# 5) Rule 4:
-# 6) Rule 5:
+# 3) Rule 2: If there is no max tag, and preceded by determiner and followed by noun, mark as adjective (JJ). 
+# 4) Rule 3: If there is no max tag, and the word contains 'ing' at the end, then mark as verb present-participle (VBG).
+# 5) Rule 4: If there is no max tag, and the word contains 'ly' at the end, then mark as adverb (RB).
+# 6) Rule 5: If the token contains numeral characters, mark as a cardinal number (CD).
 # 7) Rules 1-5 together
 #
 # Resulting accuracy
-# 1) Baseline:  0.844748697733352
-# 2) Rule 1:    0.850133746304378
+# 1) Baseline:  0.844643108545685
+# 2) Rule 1:    0.850098549908489
+# 3) Rule 2:    0.846156553568915
+# 4) Rule 3:    0.847757989581867
+# 5) Rule 4:    0.846702097705195
+# 6) Rule 5:    0.852544699422779
+# 7) Rules 1-5  0.863525974940166
 
 
 use strict;
@@ -149,6 +154,7 @@ while( my $line = <$fhTrain> ) {
         }
     }
 }
+close $fhTrain;
 
 
 #################### (3) ####################
@@ -162,7 +168,7 @@ for my $word ( keys %tokens ) {
     my $maxTag = "";
 
     # Iterate through each tag's count, and change max if new max found.
-    for my $tag ( keys %{ $tokens{$word} } ) {
+    for my $tag ( sort keys %{ $tokens{$word} } ) {
         if( $tokens{$word}{$tag} > $maxFrequency ) {
             $maxTag = $tag;
             $maxFrequency = $tokens{$word}{$tag};
@@ -200,20 +206,28 @@ while( my $line = <$fhTest> ) {
         print "[ ";
     }
 
-    my $previousToken = "";
     # Tag each token, and print the token/tag pair.
     my $arrayLength = scalar @array;
     for (my $i=0; $i<$arrayLength; $i++) {
         
         my $token = $array[$i];
         my $nextToken = "";
-        my $previousTag
+        my $nextTag = "";
+        my $previousToken = "";
+        my $previousTag = "";
         if( $i > 0) {
             $previousToken = $array[$i-1];
+            if( exists $tokens{$previousToken} ) {
+                $previousTag = $tokens{$previousToken}{"max"};
+            }
         }
         if( $i < $arrayLength-1 ) {
             $nextToken = $array[$i+1];
+            if( exists $tokens{$nextToken} ) {
+                $nextTag = $tokens{$nextToken}{"max"};
+            }
         }
+
         print " " if $first == 0;
         print "$token/";
 
@@ -221,22 +235,42 @@ while( my $line = <$fhTest> ) {
         ######################### TAGGING #########################
         ###########################################################
 
+        if( 0 ) {
+
+        }
         # RULE 1
-        if( $previousToken !~ /[.?!]/ && $token =~ /^[A-Z].*$/ ) {
+        # If previous token is not punctuation, and current token is capitalized, tag with NNP.
+        elsif( $previousToken !~ /[.?!]/ && $token =~ /^[A-Z].*$/ ) {
             print "NNP";
         }
         # Rule 2
         # If preceded by determiner and followed by noun, mark as adjective
-        # If we have the token recorded, tag it with the maximum frequency tag.
+        elsif( $previousTag eq "DT" && $nextTag eq "NN" && (!exists $tokens{$token})) {
+            print "JJ";
+        }
+        # Rule 3
+        # If there is no max tag, and the word contains 'ing' at the end, then mark as verb present-participle (VBG).
+        elsif( $token =~ /ing$/ && (!exists $tokens{$token})) {
+            print "VBG";
+        }
+        # Rule 4
+        # If there is no max tag, and the word contains 'ly' at the end, then mark as adverb (RB).
+        elsif( $token =~ /ly$/ && (!exists $tokens{$token})) {
+            print "RB";
+        }
+        # Rule 5
+        # If the token contains numeral characters, mark as a cardinal number (CD).
+        elsif( $token =~ /[0-9]/) {
+            print "CD";
+        }
+        # DEFAULT RULE: If we have the token recorded, tag it with the maximum frequency tag.
         elsif( exists $tokens{$token} ) {
             print $tokens{$token}{"max"};
         }
         # Otherwise, tag it with NN.
-        else {
+         else {
             print "NN";
         }
-
-        $previousToken = $token;
 
         ###########################################################
         ################### COMPLETED TAGGING #####################
@@ -250,6 +284,7 @@ while( my $line = <$fhTest> ) {
 
     print "\n";
 }
+close $fhTest;
 
 
 # Example of rule:
